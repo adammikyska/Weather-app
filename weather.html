@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather CZ AI PRO MAX</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  color: white;
+  text-align: center;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.overlay {
+  min-height: 100vh;
+  background: rgba(0,0,0,0.6);
+  padding: 10px;
+}
+
+.card {
+  background: rgba(30,41,59,0.9);
+  margin: 10px auto;
+  padding: 15px;
+  width: 360px;
+  border-radius: 12px;
+}
+
+button, input {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="fx"></canvas>
+
+<div class="overlay">
+
+<h1>🌦️ Weather CZ AI PRO MAX</h1>
+
+<button onclick="getGPS()">📍 Moje poloha</button>
+
+<input id="city" placeholder="Zadej město..." />
+<button onclick="search()">🔎 Hledat</button>
+
+<div id="out"></div>
+
+</div>
+
+<!-- 🔊 ZVUKY -->
+<audio id="rainSound" loop>
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6b9f1c3a2b.mp3?filename=rain-ambient-110397.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="snowSound" loop>
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_3c1a6c5b2f.mp3?filename=winter-wind-110398.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+
+// 🌍 GEO
+async function geo(city){
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=cs`);
+  const d = await r.json();
+  return d.results?.[0];
+}
+
+// 🌦️ WEATHER
+async function weather(lat, lon){
+  const r = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+  );
+  return await r.json();
+}
+
+// 🌤️ TYP POČASÍ
+function weatherType(code){
+  if(code === 0) return "☀️ jasno";
+  if(code <= 2) return "🌤️ skoro jasno";
+  if(code <= 3) return "⛅ polojasno";
+  if(code <= 48) return "🌫️ mlha";
+  if(code <= 67) return "🌧️ déšť";
+  if(code <= 82) return "🌦️ přeháňky";
+  if(code <= 77 || code <= 86) return "❄️ sněžení";
+  return "🌩️ bouřka";
+}
+
+// 🤖 AI OBLEČENÍ
+function outfit(temp){
+  if(temp <= 0) return "🧥 zimní bunda + čepice";
+  if(temp <= 10) return "🧥 bunda + mikina";
+  if(temp <= 20) return "👕 triko + mikina";
+  if(temp <= 27) return "😎 triko + kraťasy";
+  return "🔥 lehké oblečení";
+}
+
+// 📦 ZOBRAZENÍ
+function show(name, w){
+  const type = weatherType(w.weathercode || 0);
+
+  document.getElementById("out").innerHTML =
+  `<div class="card">
+    <h2>📍 ${name}</h2>
+    <p>🌡️ ${w.temperature} °C</p>
+    <p>💨 ${w.windspeed} km/h</p>
+    <p>🌦️ ${type}</p>
+    <p>🤖 ${outfit(w.temperature)}</p>
+  </div>`;
+
+  fx(type);
+}
+
+// 🔎 HLEDÁNÍ
+async function search(){
+  const g = await geo(document.getElementById("city").value);
+  const w = await weather(g.latitude, g.longitude);
+  show(g.name, w.current_weather);
+}
+
+// 📍 GPS
+function getGPS(){
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const w = await weather(pos.coords.latitude, pos.coords.longitude);
+    show("📍 Tvoje poloha", w.current_weather);
+  });
+}
+
+// 🌧️ FX + ZVUKY
+const canvas = document.getElementById("fx");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let particles = [];
+
+function fx(type){
+  particles = [];
+
+  let mode = "clear";
+
+  if(type.includes("déšť") || type.includes("přeháňky")) mode = "rain";
+  if(type.includes("sněžení")) mode = "snow";
+
+  playSound(type);
+
+  for(let i=0;i<120;i++){
+    particles.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      s: Math.random()*4+2,
+      l: Math.random()*10+5,
+      type: mode
+    });
+  }
+
+  draw(mode);
+}
+
+// 🎨 ANIMACE
+function draw(mode){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(let p of particles){
+
+    if(mode === "rain"){
+      ctx.strokeStyle = "lightblue";
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x,p.y+p.l);
+      ctx.stroke();
+      p.y += p.s;
+    }
+
+    if(mode === "snow"){
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,2,0,Math.PI*2);
+      ctx.fill();
+      p.y += p.s * 0.3;
+    }
+
+    if(p.y > canvas.height) p.y = 0;
+  }
+
+  requestAnimationFrame(()=>draw(mode));
+}
+
+// 🔊 ZVUKY
+function playSound(type){
+
+  const rain = document.getElementById("rainSound");
+  const snow = document.getElementById("snowSound");
+
+  rain.pause();
+  snow.pause();
+
+  rain.currentTime = 0;
+  snow.currentTime = 0;
+
+  if(type.includes("déšť") || type.includes("přeháňky")){
+    rain.volume = 0.6;
+    rain.play();
+  }
+
+  if(type.includes("sněžení")){
+    snow.volume = 0.6;
+    snow.play();
+  }
+}
+
+</script>
+
+</body>
+</html>
