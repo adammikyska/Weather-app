@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather CZ ULTRA</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  color: white;
+  text-align: center;
+  background-size: cover;
+  background-position: center;
+  transition: 0.5s;
+}
+
+.overlay {
+  min-height: 100vh;
+  background: rgba(0,0,0,0.65);
+  padding: 10px;
+}
+
+.card {
+  background: rgba(30,41,59,0.9);
+  margin: 10px auto;
+  padding: 15px;
+  width: 340px;
+  border-radius: 12px;
+}
+
+button, input {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="overlay">
+
+<h1>🌦️ Weather CZ ULTRA</h1>
+
+<input id="city" placeholder="Zadej město..." />
+<button onclick="search()">🔎 Hledat</button>
+
+<h3>📍 Oblíbené</h3>
+<button onclick="fav('Brno Slatina')">Brno–Slatina</button>
+<button onclick="fav('Březina')">Březina</button>
+<button onclick="fav('Praha')">Praha</button>
+<button onclick="fav('Ostrava')">Ostrava</button>
+
+<h3>🌿 Příroda</h3>
+<button onclick="setBg('forest')">Les</button>
+<button onclick="setBg('mountain')">Hory</button>
+<button onclick="setBg('lake')">Jezero</button>
+
+<h3>🎭 TADC postavy</h3>
+<button onclick="setBg('pomni')">Pomni</button>
+<button onclick="setBg('jax')">Jax</button>
+<button onclick="setBg('ragatha')">Ragatha</button>
+<button onclick="setBg('kinger')">Kinger</button>
+<button onclick="setBg('zooble')">Zooble</button>
+<button onclick="setBg('caine')">Caine</button>
+
+<h3>🎪 Circus</h3>
+<button onclick="setBg('circus')">🎪 Circus</button>
+
+<div id="out"></div>
+
+</div>
+
+<script>
+
+// 🎨 TAPETY
+const backgrounds = {
+  // 🌿 příroda
+  forest: "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+  mountain: "https://images.unsplash.com/photo-1464822759844-d150baec0494",
+  lake: "https://images.unsplash.com/photo-1500375592092-40eb2168fd21",
+
+  // 🎭 TADC styl (ilustrační vibe obrázky)
+  pomni: "https://images.unsplash.com/photo-1503264116251-35a269479413",
+  jax: "https://images.unsplash.com/photo-1520975922284-9c17f86d7f12",
+  ragatha: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+  kinger: "https://images.unsplash.com/photo-1500375592092-40eb2168fd21",
+  zooble: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e",
+  caine: "https://images.unsplash.com/photo-1520975958225-2f2b1b9c2f06",
+
+  // 🎪 circus
+  circus: "https://images.unsplash.com/photo-1507924538820-ede94a04019d"
+};
+
+function setBg(type){
+  document.body.style.backgroundImage = `url('${backgrounds[type]}')`;
+}
+
+// 🌍 GEO
+async function geo(city){
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=cs`);
+  const d = await r.json();
+  return d.results?.[0];
+}
+
+// 🌦️ WEATHER
+async function weather(lat, lon){
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+  return await r.json();
+}
+
+// 🧠 OUTFIT
+function advice(t){
+  if(t < 0) return "🧥 Mrzne – zimní bunda";
+  if(t < 10) return "🧣 Zima – mikina + bunda";
+  if(t < 20) return "👕 Jaro – lehká bunda";
+  return "🩳 Teplo – tričko stačí";
+}
+
+// 📦 DISPLAY
+function show(name, w){
+  document.getElementById("out").innerHTML =
+  `<div class="card">
+    <h2>📍 ${name}</h2>
+    <p>🌡️ ${w.temperature} °C</p>
+    <p>💨 ${w.windspeed} km/h</p>
+    <p>${advice(w.temperature)}</p>
+  </div>`;
+}
+
+// 🔍 FUNKCE
+async function fav(city){
+  const g = await geo(city);
+  if(!g) return alert("Město nenalezeno 😢");
+  const w = await weather(g.latitude, g.longitude);
+  show(city, w.current_weather);
+}
+
+async function search(){
+  fav(document.getElementById("city").value);
+}
+
+</script>
+
+</body>
+  </html>
